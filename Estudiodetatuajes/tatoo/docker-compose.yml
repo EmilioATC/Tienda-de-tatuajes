@@ -1,0 +1,78 @@
+version: '3.1'
+services:
+  nginx:
+    build: ./nginx/
+    container_name: container-nginx
+    ports:
+      - 80:80
+    links:
+      - php
+    volumes:
+      - ./www/html/:/var/www/html/  
+    environment:
+      - SSH_USER=nginx
+    networks:
+      static_net:
+        ipv4_address: 192.168.0.2
+
+  php:
+    build: ./php/
+    container_name: container-php
+    expose:
+      - 9000
+    volumes:
+      - ./www/html/:/var/www/html/  
+    links:  
+       - mysql_master
+    environment:
+      - SSH_USER=php
+    networks:
+      static_net:
+        ipv4_address: 192.168.0.3
+
+  datos:
+    image: php:8.0-fpm
+    container_name: datos-container
+    networks:
+      static_net:
+        ipv4_address: 192.168.0.4
+
+  mysql_master:
+    image: mysql:8.0
+    env_file:
+      - ./master/mysql_master.env
+    container_name: "mysql_master"
+    restart: "no"
+    ports:
+      - 4406:3306
+    volumes:
+      - ./master/conf/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./master/data:/var/lib/mysql
+    networks:
+      static_net:
+        ipv4_address: 192.168.0.5
+
+  mysql_slave:
+    image: mysql:8.0
+    env_file:
+      - ./slave/mysql_slave.env
+    container_name: "mysql_slave"
+    restart: "no"
+    ports:
+      - 5506:3306
+    depends_on:
+      - mysql_master
+    volumes:
+      - ./slave/conf/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./slave/data:/var/lib/mysql
+    networks:
+      static_net:
+        ipv4_address: 192.168.0.6
+
+networks:
+  static_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.0.0/24
